@@ -240,10 +240,11 @@ contains
         integer(I4) :: fd1, fd2, fd4, fd5
         integer(I4) :: idx, ptf
         real(DP), dimension(3) :: v, rr
-        real(DP), dimension(3) :: center, normal
+        real(DP), dimension(3) :: center, normal, origin
         real(DP), dimension(:,:), pointer :: jv
         real(DP), dimension(:,:), pointer :: jtens
         real(DP), dimension(:,:,:,:), allocatable :: jval
+        real(DP), dimension(:,:,:,:), allocatable :: magmom
         real(DP) :: val
         real(DP) :: bound, r
 
@@ -276,6 +277,7 @@ contains
         write(*,*) ""
         ! 
         call get_grid_size(this%grid, p1, p2, p3)
+        origin=gridpoint(this%grid,1,1,1)
         ! this is for cdens visualization when radius option is used
         call grid_center(this%grid,center)
         bound=1.d+10
@@ -294,6 +296,7 @@ contains
         normal = normal*AU2A
 
         allocate(jval(p1,p2,p3,3))
+        allocate(magmom(p1,p2,p3,3))
 
         jv=>this%vec
         do k=1,p3
@@ -320,6 +323,10 @@ contains
                     if (this%grid%gauss) then
                       call wrt_jmod(rr,v,fd2)
                     end if
+                    ! reference point is origin of grid
+                    !magmom(i,j,k,1:3) = 0.5d0*cross_product((rr-origin),v)
+                    ! ref center of ring - 000
+                    magmom(i,j,k,1:3) = 0.5d0*cross_product(rr,v)
                     ! case ACID
                     if (settings%acid) then
                       idx = i+(j-1)*p1+(k-1)*p1*p2
@@ -342,7 +349,7 @@ contains
         if (this%grid%gauss) then
           call closefd(fd2)
         end if
-        ! case 3D grid
+        ! case 3D Grid
         if (grid_is_3d(this%grid)) then
           if (settings%acid) then
             call acid_vtkplot(this)
@@ -362,10 +369,13 @@ contains
             call write_vtk_vector_imagedata('jvec'// tag // '.vti', this%grid, jval)
           else
             call write_vtk_vector_imagedata("jvec.vti", this%grid, jval)
+            ! put magnetic moment information on vti file
+            ! mu = 1/2 rxJ 
+            call write_vtk_vector_imagedata("magmom.vti", this%grid, magmom)
           end if
         end if
         deallocate(jval)
-
+        deallocate(magmom)
 
     end subroutine
 
