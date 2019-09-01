@@ -584,13 +584,21 @@ contains
     subroutine get_property(this)
         ! assume external grid is read in correctly via read grid
         ! assume grid_w.grd, coord.au, gridfile.grd are in the same directory
+        ! anapole susceptibility tensor implemented according to 
+        ! formula 22 Ref. Pelloni J. Comput. Chem. 2016, 
+        !                 DOI: 10.1002/jcc.24369
+
         type(jfield_t) :: this
         real(DP), dimension(:,:), pointer :: jtens
         real(DP), allocatable :: wg(:), coord(:,:), grd(:,:)
         real(DP), dimension(3) :: d, bb, jvec, sigma, chi
-        real(DP) :: f, tmp
+        real(DP), dimension(9) :: ana
+        real(DP) :: f, tmp, fana 
         integer :: i, j, k, npts, natoms
         logical :: coords_exists, points_exists, weights_exists
+
+        ! prefactor for anapole tensor integral
+        fana = -1.0d0/6.0d0
 
         inquire(FILE='coord.au',     EXIST=coords_exists)
         inquire(FILE='gridfile.grd', EXIST=points_exists)
@@ -632,13 +640,15 @@ contains
           ! loop grid points
           sigma = 0.0d0
           chi = 0.0d0
+          ana = 0.0d0
           do i=1, npts
             ! loop xyz
             do j = 1, 3
               d(j) = grd(i,j) - coord(k,j)
             end do
             f = -1.0d0/((d(1)*d(1) + d(2)*d(2) + d(3)*d(3))**1.5d0)/(137.0359998d0**2.0d0)
-            ! contract with Bx
+
+            ! contract with Bx ***********************************
             bb(1) = -1.0d0
             bb(2) = 0.0d0
             bb(3) = 0.0d0
@@ -647,7 +657,23 @@ contains
             sigma(1) = sigma(1) + 1.0d6*wg(i)*f*(d(2)*jvec(3) - d(3)*jvec(2))
             ! chi_xx
             chi(1) = chi(1) + wg(i)*0.5d0*(grd(i,2)*jvec(3) - grd(i,3)*jvec(2))
-            ! contract with By
+            ! ana_xx (anapole) 
+            ana(1) = ana(1) + wg(i)*fana*(  &
+     &               jvec(1)*( grd(i,1)**2 + grd(i,3)**2 )  &
+     &               - jvec(2)*grd(i,2)*grd(i,1)  &
+     &               - jvec(3)*grd(i,3)*grd(i,1) )
+            ! ana_yx (anapole) 
+            ana(4) = ana(4) + wg(i)*fana*(  &
+     &               -1.0d0*jvec(1)*grd(i,1)*grd(i,2)   &
+     &               + jvec(2)*( grd(i,1)**2 + grd(i,3)**2 )  &
+     &               - jvec(3)*grd(i,3)*grd(i,2) )
+            ! ana_zx (anapole) 
+            ana(7) = ana(7) + wg(i)*fana*(  &
+     &               -1.0d0*jvec(1)*grd(i,1)*grd(i,3)   &
+     &               -1.0d0*jvec(2)*grd(i,2)*grd(i,3)   &
+     &               + jvec(3)*( grd(i,1)**2 + grd(i,2)**2 ) )
+        
+            ! contract with By *********************************
             bb(1) = 0.0d0
             bb(2) = -1.0d0
             bb(3) = 0.0d0
@@ -656,7 +682,23 @@ contains
             sigma(2) = sigma(2) + 1.0d6*wg(i)*f*(d(3)*jvec(1) - d(1)*jvec(3))
             ! chi_yy
             chi(2) = chi(2) + wg(i)*0.5d0*(grd(i,3)*jvec(1) - grd(i,1)*jvec(3))
-            ! contract with Bz
+            ! ana_xy (anapole) 
+            ana(2) = ana(2) + wg(i)*fana*(  &
+     &               jvec(1)*( grd(i,1)**2 + grd(i,3)**2 )  &
+     &               - jvec(2)*grd(i,2)*grd(i,1)  &
+     &               - jvec(3)*grd(i,3)*grd(i,1) )
+            ! ana_yy (anapole) 
+            ana(5) = ana(5) + wg(i)*fana*(  &
+     &               -1.0d0*jvec(1)*grd(i,1)*grd(i,2)   &
+     &               + jvec(2)*( grd(i,1)**2 + grd(i,3)**2 )  &
+     &               - jvec(3)*grd(i,3)*grd(i,2) )
+            ! ana_zy (anapole) 
+            ana(8) = ana(8) + wg(i)*fana*(  &
+     &               -1.0d0*jvec(1)*grd(i,1)*grd(i,3)   &
+     &               -1.0d0*jvec(2)*grd(i,2)*grd(i,3)   &
+     &               + jvec(3)*( grd(i,1)**2 + grd(i,2)**2 ) )
+        
+            ! contract with Bz *********************************
             bb(1) = 0.0d0
             bb(2) = 0.0d0
             bb(3) = -1.0d0
@@ -665,14 +707,32 @@ contains
             sigma(3) = sigma(3) + 1.0d6*wg(i)*f*(d(1)*jvec(2) - d(2)*jvec(1))
             ! chi_zz
             chi(3) = chi(3) + wg(i)*0.5d0*(grd(i,1)*jvec(2) - grd(i,2)*jvec(1))
+
+            ! ana_xz (anapole) 
+            ana(3) = ana(3) + wg(i)*fana*(  &
+     &               jvec(1)*( grd(i,1)**2 + grd(i,3)**2 )  &
+     &               - jvec(2)*grd(i,2)*grd(i,1)  &
+     &               - jvec(3)*grd(i,3)*grd(i,1) )
+            ! ana_yz (anapole) 
+            ana(6) = ana(6) + wg(i)*fana*(  &
+     &               -1.0d0*jvec(1)*grd(i,1)*grd(i,2)   &
+     &               + jvec(2)*( grd(i,1)**2 + grd(i,3)**2 )  &
+     &               - jvec(3)*grd(i,3)*grd(i,2) )
+            ! ana_zz (anapole) 
+            ana(9) = ana(9) + wg(i)*fana*(  &
+     &               -1.0d0*jvec(1)*grd(i,1)*grd(i,3)   &
+     &               -1.0d0*jvec(2)*grd(i,2)*grd(i,3)   &
+     &               + jvec(3)*( grd(i,1)**2 + grd(i,2)**2 ) )
+
           end do
+          !
           write(*,*) "atom ",k
           write(*,*) "sigma_xx ", sigma(1)
           write(*,*) "sigma_yy ", sigma(2)
           write(*,*) "sigma_zz ", sigma(3)
           tmp = (sigma(1) + sigma(2) + sigma(3))/3.0d0
           write(*,*) "shielding constant sigma = ", tmp
-
+        !
         end do
         write(*,*) ""
         write(*,*) "chi_xx ", chi(1)
@@ -680,6 +740,28 @@ contains
         write(*,*) "chi_zz ", chi(3)
         tmp = (chi(1) + chi(2) + chi(3))/3.0d0
         write(*,*) "isotropic magnetizability chi = ", tmp
+        write(*,*) ""
+        !
+        write(*,*) ""
+        write(*,*) " anapole susceptibility tensor " 
+        write(*,*) "ana_xx ", ana(1)
+        write(*,*) "ana_xy ", ana(2)
+        write(*,*) "ana_xz ", ana(3)
+        write(*,*) "ana_yx ", ana(4)
+        write(*,*) "ana_yy ", ana(5)
+        write(*,*) "ana_yz ", ana(6)
+        write(*,*) "ana_zx ", ana(7)
+        write(*,*) "ana_zy ", ana(8)
+        write(*,*) "ana_zz ", ana(9)
+        write(*,*) ""
+        tmp = (ana(1) + ana(5) + ana(9))/3.0d0
+        write(*,*) " average anapole susceptibility ", tmp
+        write(*,*) ""
+        write(*,*) " anapole polar vector A with B = (0,0,1) "
+        write(*,*) "A_x ", ana(3)
+        write(*,*) "A_y ", ana(6)
+        write(*,*) "A_z ", ana(9) 
+        write(*,*) ""
 
         ! clean up
         deallocate(wg, coord)
