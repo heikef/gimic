@@ -744,18 +744,19 @@ contains
         !
         write(*,*) ""
         write(*,*) " anapole susceptibility tensor " 
-        write(*,*) "ana_xx ", ana(1)
-        write(*,*) "ana_xy ", ana(2)
-        write(*,*) "ana_xz ", ana(3)
-        write(*,*) "ana_yx ", ana(4)
-        write(*,*) "ana_yy ", ana(5)
-        write(*,*) "ana_yz ", ana(6)
-        write(*,*) "ana_zx ", ana(7)
-        write(*,*) "ana_zy ", ana(8)
-        write(*,*) "ana_zz ", ana(9)
+        write(*,'("ana_xx", 2X, F14.6)') ana(1)
+        write(*,'("ana_xy", 2X, F14.6)') ana(2)
+        write(*,'("ana_xz", 2X, F14.6)') ana(3)
+        write(*,'("ana_yx", 2X, F14.6)') ana(4)
+        write(*,'("ana_yy", 2X, F14.6)') ana(5)
+        write(*,'("ana_yz", 2X, F14.6)') ana(6)
+        write(*,'("ana_zx", 2X, F14.6)') ana(7)
+        write(*,'("ana_zy", 2X, F14.6)') ana(8)
+        write(*,'("ana_zz", 2X, F14.6)') ana(9)
         write(*,*) ""
         tmp = (ana(1) + ana(5) + ana(9))/3.0d0
-        write(*,*) " average anapole susceptibility ", tmp
+        write(*,*) " average anapole susceptibility (trace)"
+        write(*,'(F14.6)') tmp
         write(*,*) ""
         write(*,*) " anapole polar vector A with B = (0,0,1) "
         write(*,*) "A_x ", ana(3)
